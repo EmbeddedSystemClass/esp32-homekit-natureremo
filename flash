@@ -1,0 +1,3 @@
+#!/bin/bash
+make all -j4 && make erase_flash && make flash && make monitor
+

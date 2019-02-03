@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "wifi_setup.h": "c",
+        "systemled.h": "c"
+    }
+}
