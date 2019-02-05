@@ -2,6 +2,9 @@ esp32-homekit-natureremo
 ====================
 
 Apple Homekit から [Nature Remo](https://nature.global/) を操作する事ができる、Espressif の SoC マイコン [ESP32](https://ja.wikipedia.org/wiki/ESP32) のカスタムファームウェアです。  
+```
+Apple Homekit -> ESP32 -> HTTP(Nature Remo Local API) -> Nature Remo
+```
 
 ### 前提
 [esp-idfのセットアップ](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)が完了している事。
