@@ -2,7 +2,7 @@
 
 static const char* TAG = "NATUREREMO";
 static EventGroupHandle_t ready_to_send_signal_event_group;
-const int READY_TO_SEND_SIGNAL_BIT = BIT0;
+const int READY_TO_SEND_SIGNAL_BIT = BIT2;
 
 /* アプライアンスとシグナルIDの定義 */
 static natureremo_ceiling_light_t ceiling_lights[] = 
@@ -37,30 +37,31 @@ static natureremo_ceiling_light_t ceiling_lights[] =
 esp_err_t _send_signal_event_handler(esp_http_client_event_t *evt) {
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
-            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+            ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
             break;
         case HTTP_EVENT_ON_CONNECTED:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
             break;
         case HTTP_EVENT_HEADER_SENT:
-            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+            ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
             break;
         case HTTP_EVENT_ON_HEADER:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
             break;
         case HTTP_EVENT_ON_DATA:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            /*
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 // Write out data
-                // printf("%.*s", evt->data_len, (char*)evt->data);
+                printf("%.*s", evt->data_len, (char*)evt->data);
             }
-
+            */
             break;
         case HTTP_EVENT_ON_FINISH:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
             break;
         case HTTP_EVENT_DISCONNECTED:
-            ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
+            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
             break;
     }
     return ESP_OK;
@@ -68,7 +69,6 @@ esp_err_t _send_signal_event_handler(esp_http_client_event_t *evt) {
 
 static int send_signal(char* signal_id) {
     int http_status_code = 0;
-    ESP_LOGI(TAG, "Start send signal: %s\n", signal_id);
     esp_http_client_config_t config = {
         .url = "http://192.168.10.20/messages",
         .event_handler = _send_signal_event_handler,
@@ -87,7 +87,7 @@ static int send_signal(char* signal_id) {
                 http_status_code,
                 esp_http_client_get_content_length(client));
     } else {
-        ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
+        ESP_LOGI(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
     return http_status_code;
@@ -98,9 +98,9 @@ static void wait_ready_to_send_signal(){
 }
 
 static void send_signal_task(void* pvParameters){
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     wifi_wait_connected();    // WiFiへの接続が完了するまで待つ
     wait_ready_to_send_signal();  // HTTPリクエストが送信可能になるまで待つ
-
     xEventGroupClearBits(ready_to_send_signal_event_group, READY_TO_SEND_SIGNAL_BIT); // HTTPリクエストの排他処理
     natureremo_signal_t* natureremo_signal = (natureremo_signal_t*)pvParameters;
     while(1) { // HTTPステータスコード400以外が帰ってくるまでループ(NatureRemoデバイス対策)
@@ -110,9 +110,9 @@ static void send_signal_task(void* pvParameters){
             ESP_LOGI(TAG, "Finish send signal\n");
             break;
         }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(1500 / portTICK_PERIOD_MS);
     }
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    
     xEventGroupSetBits(ready_to_send_signal_event_group, READY_TO_SEND_SIGNAL_BIT); // HTTPリクエストの排他解除
     vTaskDelete(NULL);
 }
