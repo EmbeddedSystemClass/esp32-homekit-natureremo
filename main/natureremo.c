@@ -67,7 +67,7 @@ esp_err_t _send_signal_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-static int send_signal(char* signal_id) {
+static int send_signal(char* signal_value) {
     int http_status_code = 0;
     esp_http_client_config_t config = {
         .url = "http://192.168.10.20/messages",
@@ -78,7 +78,7 @@ static int send_signal(char* signal_id) {
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "X-Requested-With", "curl");
     esp_http_client_set_header(client, "accept", "application/json");
-    esp_http_client_set_post_field(client, signal_id, strlen(signal_id));
+    esp_http_client_set_post_field(client, signal_value, strlen(signal_value));
     esp_err_t err = esp_http_client_perform(client);
 
     if (err == ESP_OK) {
@@ -98,9 +98,10 @@ static void wait_ready_to_send_signal(){
 }
 
 static void send_signal_task(void* pvParameters){
-    vTaskDelay(500 / portTICK_PERIOD_MS);
     wifi_wait_connected();    // WiFiへの接続が完了するまで待つ
     wait_ready_to_send_signal();  // HTTPリクエストが送信可能になるまで待つ
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
     xEventGroupClearBits(ready_to_send_signal_event_group, READY_TO_SEND_SIGNAL_BIT); // HTTPリクエストの排他処理
     natureremo_signal_t* natureremo_signal = (natureremo_signal_t*)pvParameters;
     while(1) { // HTTPステータスコード400以外が帰ってくるまでループ(NatureRemoデバイス対策)
