@@ -103,19 +103,28 @@ static void wait_ready_to_signal_transmission(){
 }
 
 static void signal_transmission_task(void* pvParameters){
+    int max_retry_count = 3;
+
     wifi_wait_connected();    // WiFiへの接続が完了するまで待つ
     wait_ready_to_signal_transmission();  // HTTPリクエストが送信可能になるまで待つ
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
     xEventGroupClearBits(ready_to_signal_transmission_event_group, READY_TO_SIGNAL_TRANSMISSION_BIT); // HTTPリクエストの排他処理
     natureremo_signal_t* natureremo_signal = (natureremo_signal_t*)pvParameters;
-    while(1) { // HTTPステータスコード400以外が帰ってくるまでループ(NatureRemoデバイス対策)
-        ESP_LOGI(TAG, "Start send signal\n");
+
+    while(1) {
+        ESP_LOGI(TAG, "Start signal transmission\n");
         int signal_transmission_result = signal_transmission(natureremo_signal->value);
         if(signal_transmission_result){
-            ESP_LOGI(TAG, "Finish send signal\n");
+            ESP_LOGI(TAG, "Finish signal transmission\n");
             break;
         }
+        ESP_LOGI(TAG, "Retry signal transmission...\n");
+        if(--max_retry_count == 0){
+            break;
+        }
+        ESP_LOGE(TAG, "Signal transmission error\n");
+        ESP_LOGI(TAG, "Retry signal transmission...\n");
         vTaskDelay(1500 / portTICK_PERIOD_MS);
     }
     
