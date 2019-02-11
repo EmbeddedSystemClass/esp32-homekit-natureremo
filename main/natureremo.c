@@ -50,12 +50,10 @@ esp_err_t _signal_transmission_event_handler(esp_http_client_event_t *evt) {
             break;
         case HTTP_EVENT_ON_DATA:
             ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-            /*
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 // Write out data
                 printf("%.*s", evt->data_len, (char*)evt->data);
             }
-            */
             break;
         case HTTP_EVENT_ON_FINISH:
             ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
@@ -69,12 +67,14 @@ esp_err_t _signal_transmission_event_handler(esp_http_client_event_t *evt) {
 
 static bool signal_transmission(char* signal_value) {
     bool result = true;
+    esp_http_client_handle_t client = NULL;
+
     int http_status_code = 0;
     esp_http_client_config_t config = {
         .url = "http://192.168.10.20/messages",
         .event_handler = _signal_transmission_event_handler,
     };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
+    client = esp_http_client_init(&config);
 
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "X-Requested-With", "curl");
@@ -104,12 +104,12 @@ static void wait_ready_to_signal_transmission(){
 
 static void signal_transmission_task(void* pvParameters){
     int max_retry_count = 3;
-
+    
+    xEventGroupClearBits(ready_to_signal_transmission_event_group, READY_TO_SIGNAL_TRANSMISSION_BIT); // HTTPリクエストの排他処理
     wifi_wait_connected();    // WiFiへの接続が完了するまで待つ
     wait_ready_to_signal_transmission();  // HTTPリクエストが送信可能になるまで待つ
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
-    xEventGroupClearBits(ready_to_signal_transmission_event_group, READY_TO_SIGNAL_TRANSMISSION_BIT); // HTTPリクエストの排他処理
     natureremo_signal_t* natureremo_signal = (natureremo_signal_t*)pvParameters;
 
     while(1) {
@@ -136,14 +136,13 @@ static void signal_transmission_task(void* pvParameters){
 void natureremo_ceiliing_light_on(int light_no) {
     ceiling_lights[light_no].on = true; // ライトの点灯ステータスをON(true)にする
     natureremo_signal_t* natureremo_signal = &ceiling_lights[light_no].signals[0];
-    xTaskCreatePinnedToCore(
-        &signal_transmission_task, 
-        "natureremo_ceiliing_light_on_task", 
-        8192, 
-        (void*)natureremo_signal, 
-        5, 
-        NULL, 
-        1
+    xTaskCreate(
+        &signal_transmission_task,
+        "signal_transmission_task",
+        8192,
+        (void*)natureremo_signal,
+        5,
+        NULL
     );
 }
 
@@ -151,14 +150,13 @@ void natureremo_ceiliing_light_on(int light_no) {
 void natureremo_ceiliing_light_off(int light_no) {
     ceiling_lights[light_no].on = false; // ライトの点灯ステータスをOFF(false)にする
     natureremo_signal_t* natureremo_signal = &ceiling_lights[light_no].signals[1];
-    xTaskCreatePinnedToCore(
-        &signal_transmission_task, 
-        "natureremo_ceiliing_light_off_task", 
-        8192, 
-        (void*)natureremo_signal, 
-        5, 
-        NULL, 
-        1
+    xTaskCreate(
+        &signal_transmission_task,
+        "signal_transmission_task",
+        8192,
+        (void*)natureremo_signal,
+        5,
+        NULL
     );
 }
 
