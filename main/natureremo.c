@@ -104,10 +104,11 @@ static void wait_ready_to_signal_transmission(){
 
 static void signal_transmission_task(void* pvParameters){
     int max_retry_count = 3;
-    
+
+    wait_ready_to_signal_transmission();  // HTTPリクエストが送信可能になるまで待つ
     xEventGroupClearBits(ready_to_signal_transmission_event_group, READY_TO_SIGNAL_TRANSMISSION_BIT); // HTTPリクエストの排他処理
     wifi_wait_connected();    // WiFiへの接続が完了するまで待つ
-    wait_ready_to_signal_transmission();  // HTTPリクエストが送信可能になるまで待つ
+    
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
     natureremo_signal_t* natureremo_signal = (natureremo_signal_t*)pvParameters;
